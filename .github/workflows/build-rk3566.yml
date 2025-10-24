@@ -1,0 +1,73 @@
+name: Build iStoreOS for RK3566
+
+on:
+  workflow_dispatch:
+    inputs:
+      openwrt_kernel:
+        description: "请选择内核版本（若未匹配则自动）"
+        required: true
+        default: "5.10.y"
+        type: choice
+        options:
+          - 5.10.y
+          - 5.15.y
+          - 6.1.y
+      PLUGINS:
+        description: "可选插件（逗号分隔），例如 docker,iStore,aria2"
+        required: false
+        default: ""
+      LANGUAGE:
+        description: "系统语言"
+        required: false
+        default: "zh_CN"
+      TIMEZONE:
+        description: "时区"
+        required: false
+        default: "Asia/Shanghai"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      BOARD: rk3566
+      DISTRO: istoreos
+      KERNEL: ${{ github.event.inputs.openwrt_kernel }}
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      PLUGINS: ${{ github.event.inputs.PLUGINS }}
+      LANGUAGE: ${{ github.event.inputs.LANGUAGE }}
+      TIMEZONE: ${{ github.event.inputs.TIMEZONE }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up iStoreOS build environment
+        run: |
+          echo "Starting iStoreOS build for RK3566"
+          mkdir -p bin/targets/armsr/armv8
+          echo "BOARD=$BOARD"
+          echo "KERNEL=$KERNEL"
+          echo "DISTRO=$DISTRO"
+          echo "PLUGINS=$PLUGINS"
+          echo "LANGUAGE=$LANGUAGE"
+          echo "TIMEZONE=$TIMEZONE"
+
+      - name: Run build workflow
+        uses: ophub/amlogic-s9xxx-openwrt@main
+        with:
+          openwrt_file: bin/targets/armsr/armv8/openwrt-armvirt-64-default-rootfs.tar.gz
+          kernel_version: ${{ env.KERNEL }}
+          board: ${{ env.BOARD }}
+          distro: ${{ env.DISTRO }}
+          plugins: ${{ env.PLUGINS }}
+          language: ${{ env.LANGUAGE }}
+          timezone: ${{ env.TIMEZONE }}
+          gh_token: ${{ env.GH_TOKEN }}
+
+      - name: Upload Artifacts
+        if: success()
+        uses: actions/upload-artifact@v3
+        with:
+          name: istoreos-rk3566
+          path: |
+            build_output/*.img.gz
